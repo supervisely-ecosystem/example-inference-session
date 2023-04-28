@@ -1,18 +1,15 @@
 import os
+
 import supervisely as sly
-
 from dotenv import load_dotenv
-from pprint import pprint
 
-
-if sly.is_development():
-    load_dotenv("local.env")
-    load_dotenv(os.path.expanduser("~/supervisely.env"))
+load_dotenv("local.env")
+load_dotenv(os.path.expanduser("~/supervisely.env"))
 
 
 api = sly.Api.from_env()
 
-urls = [
+links = [
     "https://live.staticflickr.com/1578/24294187606_89069ac7dd_k_d.jpg",
     "https://live.staticflickr.com/5491/9127573526_2999fafead_k_d.jpg",
     "https://live.staticflickr.com/6161/6175302372_76c4db94d0_k_d.jpg",
@@ -25,22 +22,30 @@ urls = [
     "https://live.staticflickr.com/7344/9886706776_16f9656162_k_d.jpg",
 ]
 target_class_names = ["person", "bicycle", "car"]
-model_task_id = 32996
 
-session = sly.nn.inference.Session(api, task_id=model_task_id)
 
-model_meta = session.get_model_meta()
-
+# Get Workspace ID from environment variables
 workspace_id = sly.env.workspace_id()
+workspace = api.workspace.get_info_by_id(workspace_id)
+if workspace is None:
+    print("you should put correct workspaceId value to local.env")
+    raise ValueError(f"Workspace with id={workspace_id} not found")
 
 # Create new project and dataset
-project_info = api.project.create(
-    workspace_id, "My model predictions", change_name_if_conflict=True
-)
+project_info = api.project.create(workspace_id, "Model predictions", change_name_if_conflict=True)
 dataset_info = api.dataset.create(project_info.id, "Week # 1")
 
+print(f"Project has been sucessfully created, id={project_info.id}")
 
-# Create tags 
+
+# Initialize `sly.nn.inference.Session`
+model_task_id = 32996
+session = sly.nn.inference.Session(api, task_id=model_task_id)
+
+# Get model meta
+model_meta = session.get_model_meta()
+
+# Create tags
 meta_high_confidence = sly.TagMeta("high confidence", sly.TagValueType.NONE)
 high_confidence_tag = sly.Tag(meta_high_confidence)
 
@@ -52,14 +57,15 @@ model_meta = model_meta.add_tag_metas(new_tag_metas=[meta_high_confidence, meta_
 api.project.update_meta(id=project_info.id, meta=model_meta)
 
 
-for i, url in enumerate(urls):
-    # upload current image from given url to Supervisely server
-    image_info = api.image.upload_link(dataset_info.id, f"image_{i}.jpg", url)
+for i, link in enumerate(links):
+    # upload current image from given link to Supervisely server
+    image_info = api.image.upload_link(dataset_info.id, f"image_{i}.jpg", link)
+    print(f"Image successfully uploaded, id={image_info.id}")
 
     # get image inference
-    prediction = session.inference_image_url(url)
+    prediction = session.inference_image_url(link)
 
-    # check confidence of predictions and set tags
+    # check confidence of predictions and set relevant tags
     image_need_validation = False
     new_labels = []
     for label in prediction.labels:
