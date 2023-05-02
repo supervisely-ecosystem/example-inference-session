@@ -210,4 +210,4 @@ for i, link in enumerate(links):
     api.annotation.upload_ann(image_info.id, prediction) # Upload annotations to server
 ```
 
-[Result images with objects and tags](https://user-images.githubusercontent.com/79905215/235687566-4bfc7ce5-392e-49a1-9d77-f2c30091eb75.gif)
+![Result images with objects and tags](https://user-images.githubusercontent.com/79905215/235687566-4bfc7ce5-392e-49a1-9d77-f2c30091eb75.gif)
