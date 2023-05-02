@@ -39,7 +39,8 @@ print(f"Project has been sucessfully created, id={project_info.id}")
 
 
 # Initialize `sly.nn.inference.Session`
-model_task_id = 32996
+model_task_id = 33172
+CONFIDENCE_THRESHOLD = 0.8
 session = sly.nn.inference.Session(api, task_id=model_task_id)
 
 # Get model meta
@@ -66,13 +67,16 @@ for i, link in enumerate(links):
     prediction = session.inference_image_url(link)
 
     # check confidence of predictions and set relevant tags
+    # if predictions confidence lower than confidence threshold 
+    # image and current label will be marked by "need validation" tag
     image_need_validation = False
     new_labels = []
     for label in prediction.labels:
+        # skip the label if object class name is not in list of target class names.
         if label.obj_class.name not in target_class_names:
             continue
         confidence_tag = label.tags.get("confidence")
-        if confidence_tag.value < 0.8:
+        if confidence_tag.value < CONFIDENCE_THRESHOLD:
             new_label = label.add_tag(need_validation_tag)
             image_need_validation = True
             new_labels.append(new_label)
