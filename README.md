@@ -9,6 +9,8 @@
 In this tutorial, you'll learn how to infer deployed models **from your code** with the `sly.nn.inference.Session` class and process the images.
 This class is a convenient wrapper for a low-level API. It under the hood is just a communication with the serving app via `requests`.
 
+The entire integration Python script takes only 👍 95 lines of code (including comments) and can be found in [GitHub repository](https://github.com/supervisely-ecosystem/example-inference-session) for this tutorial.
+
 **Table of Contents**:
 
 - [Custom inference pipeline](#custom-inference-pipeline)
@@ -17,12 +19,11 @@ This class is a convenient wrapper for a low-level API. It under the hood is jus
 - [Tutorial](#python-code)
   * [1. Import libraries](#import-libraries)
   * [2. Init API client](#init-api-client)
-  * [3. Initialize `sly.nn.inference.Session`](#initialize-sly.nn.inference.session)
+  * [3. Initialize `sly.nn.inference.Session`](#initialize-slynninferencesession)
   * [4. Create project](#create-project)
-  * [5. Create 2 new tags: "high confidence" and "need validation"](#create-2-new-tags-high-confidence-and-need-validation)
-  * [6. Add new tags to the project metadata](#add-new-tags-to-the-project-metadata)
-  * [7. Prepare image links and classes](#prepare-image-links-and-classes-you-want-to-collect)
-  * [8. Process images and predictions](#upload-images-and-object-detections-in-the-loop)
+  * [5. Create and add new tags to the project](#add-new-tags-to-the-project-metadata)
+  * [6. Prepare source images](#prepare-image-links-and-classes-you-want-to-collect)
+  * [7. Process images and predictions](#processing-images-and-object-detections)
 
 **Before starting you have to deploy your model with a Serving App (e.g. [Serve YOLOv5](https://ecosystem.supervise.ly/apps/yolov5/supervisely/serve))**
 
@@ -168,26 +169,27 @@ It this section we will make predictions on images and applies tags based on the
 If the confidence of the current label is below 0.8, both the label and the current image will be tagged as "need validation," otherwise, the image will be tagged as "high confidence." 
 
 By setting tags based on the prediction confidence level, this script enables the separation of the dataset into "high confidence" and "need validation" images.
-This allows for efficient and automated image processing.
+This allows for efficient and automated image processing. ✅
 
 ```python
 CONFIDENCE_THRESHOLD = 0.8
 
 for i, link in enumerate(links):
-    # upload current image from given link to Supervisely server
+    # Upload current image from given link to Supervisely server
     image_info = api.image.upload_link(dataset_info.id, f"image_{i}.jpg", link)
     print(f"Image successfully uploaded, id={image_info.id}")
 
-    # get image inference
+    # Get image inference
     prediction = session.inference_image_url(link)
 
-    # check confidence of predictions and set relevant tags
-    # if predictions confidence lower than confidence threshold 
-    # image and current label will be marked by "need validation" tag
+    # Check confidence of predictions and set relevant tags.
+    # If the prediction confidence is lower than the defined threshold,
+    # both the image and the current label will be marked with the 'need validation' tag.
     image_need_validation = False
     new_labels = []
+
     for label in prediction.labels:
-        # skip the label if its object class name is not in list of target class names.
+        # Skip the label if object class name is not in list of target class names.
         if label.obj_class.name not in target_class_names:
             continue
         confidence_tag = label.tags.get("confidence")
@@ -199,13 +201,13 @@ for i, link in enumerate(links):
             new_labels.append(label)
 
     prediction = prediction.clone(labels=new_labels)
+
     if image_need_validation is False:
         prediction = prediction.add_tag(high_confidence_tag)
     else:
         prediction = prediction.add_tag(need_validation_tag)
 
-    # upload annotations to Supervisely server
-    api.annotation.upload_ann(image_info.id, prediction)
+    api.annotation.upload_ann(image_info.id, prediction) # Upload annotations to server
 ```
 
 [Result images with objects and tags](https://user-images.githubusercontent.com/79905215/235687566-4bfc7ce5-392e-49a1-9d77-f2c30091eb75.gif)
